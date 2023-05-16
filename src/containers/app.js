@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import DeckGL from '@deck.gl/react';
 import { PointCloudLayer, LineLayer, COORDINATE_SYSTEM, TextLayer, OrbitView, PolygonLayer } from 'deck.gl';
 import {
@@ -8,14 +8,12 @@ import Clustering from 'density-clustering';
 import Controller from '../components';
 
 const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN; //Acquire Mapbox accesstoken
-const titleimg = 'data/title.png';
-const titleimglist = [titleimg,titleimg,titleimg,titleimg,titleimg]
 
 const INITIAL_VIEW_STATE = {
   target: [0, 0, 0],
   rotationX: 5,
   rotationOrbit: -5,
-  zoom: 3
+  zoom: 8.5
 };
 const kmeans = new Clustering.KMEANS()
 const clusterColors = [
@@ -37,18 +35,43 @@ const App = (props)=>{
   const [saveDataset, setDataset] = useState([[]])
   const [clusterNum, setClusterNum] = useState(10);
   const [textSiza, setTextSiza] = useState(10);
-  const [pointSiza, setPointSiza] = useState(4);
+  const [pointSiza, setPointSiza] = useState(1);
   const [clusterColor, setClusterColor] = useState(undefined);
   const [shikibetuTbl, setShikibetuTbl] = useState([]);
-  let dragged = {target:null,x:0,y:0,degree:0}
+  const [selectPointId, setSelectPointId] = useState([]);
+  const [pointData, setPointData] = useState(null);
+  const [polygonData, setPolygonData] = useState(null);
+  const [polygonDic, setPolygonDic] = useState(null);
   const { actions, viewport, movesbase, movedData, loading, settime } = props;
 
   const text3dData = movedData.filter(x=>x.position)
   const dataset = text3dData.map((x)=>x.position).sort((a,b)=>{a[0]-b[0]})
 
   React.useEffect(()=>{
-    setTimeout(()=>{InitialFileRead(props)},1000)
+    setTimeout(()=>{InitialFileRead1({...props,setPointData,setPolygonData,setPolygonDic})},200)
   },[])
+
+  React.useEffect(()=>{
+    if(pointData !== null && polygonDic !== null){
+      const analyzeData = pointData.map((data)=>{
+          const { xyz, Color, ...others } = data;
+          if(polygonDic[others.AreaID]){
+              const {Polygon,Color:polyColor,...polyOthers} = polygonDic[others.AreaID][0]
+              return {...polyOthers, ...others, operation:[
+                  {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:0},
+                  {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:1}
+              ]}
+          }else{
+              return {...others, operation:[
+                  {position:xyz, color:Color, elapsedtime:0},
+                  {position:xyz, color:Color, elapsedtime:1}
+              ]}
+          }
+      });
+      console.log({analyzeData})
+      actions.setMovesBase(analyzeData);
+    }
+  },[pointData,polygonDic])
 
   React.useEffect(()=>{
     if(movesbase.length === 0){
@@ -128,7 +151,7 @@ const App = (props)=>{
 
   const onHover = (el)=>{
     if (el && el.object) {
-      const disptext = `ID:${el.object.shikibetu}\n${el.object.text}\n` +
+      const disptext = `AreaID:${el.object.AreaID}\n` +
       `X:${el.object.position[0]}\nY:${el.object.position[1]}\nZ:${el.object.position[2]}`
       updateState({ popup: [el.x, el.y, disptext] });
     } else {
@@ -137,15 +160,17 @@ const App = (props)=>{
   }
 
   const onClick = (el)=>{
-    if (el && el.object) {
-      const findResult = shikibetuTbl.findIndex(x=>x===el.object.shikibetu)
-      if(findResult < 0){
-        shikibetuTbl.push(el.object.shikibetu)
-      }else{
-        shikibetuTbl.splice(findResult,1)
+    if (el && el.layer && el.object && el.object.AreaID) {
+      console.log(`id:${el.layer.id}`)
+      if(el.layer.id === "PointCloudLayer" || el.layer.id === "SelPointCloudLayer" || el.layer.id === "PolygonLayer"){
+        const index = selectPointId.findIndex((value)=>value === el.object.AreaID)
+        if(index < 0){
+          selectPointId.push(el.object.AreaID)
+        }else{
+          selectPointId.splice(index,1)
+        }
+        setSelectPointId(selectPointId)
       }
-      setShikibetuTbl(shikibetuTbl)
-      console.log({shikibetuTbl})
     }
   }
 
@@ -162,7 +187,7 @@ const App = (props)=>{
       data: text3dData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       getPosition: x => x.position,
-      getColor: x => clusterColor[x.shikibetu] || [0,0,0xff,0xff],
+      getColor: x => x.color,
       pointSize: pointSiza,
       pickable: true,
       onHover,
@@ -170,18 +195,31 @@ const App = (props)=>{
     });
   }
 
-  const getTextLayer = (text3dData)=>{
-    return new TextLayer({
-      id: 'TextLayer',
-      data: text3dData,
+  const getSelPointCloudLayer = (text3dData)=>{
+    const dspdata = text3dData.filter((x)=>selectPointId.includes(x.AreaID))
+    return new PointCloudLayer({
+      id: 'SelPointCloudLayer',
+      data: dspdata,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      characterSet: 'auto',
       getPosition: x => x.position,
-      getText: x => x.text,
-      getColor: x => clusterColor[x.shikibetu] || [0,0,0xff,0xff],
-      getSize: x => getTextSize(x),
-      getTextAnchor: 'start',
+      getColor: x => x.color,
+      pointSize: pointSiza+2,
       pickable: true,
+      onHover,
+      onClick
+    });
+  }
+
+  const getPolygonLayer = (text3dData)=>{
+    const polygonData = text3dData.filter(x=>x.polygon)
+    return new PolygonLayer({
+      id: 'PolygonLayer',
+      data: polygonData,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      getFillColor: x => x.polyColor,
+      pickable: true,
+      stroked: false,
+      opacity: 0.5,
       onHover,
       onClick
     });
@@ -192,7 +230,10 @@ const App = (props)=>{
       <Controller {...props} updateViewState={updateViewState} viewState={viewState}
       clusterNum={clusterNum} setClusterNum={setClusterNum}
       textSiza={textSiza} setTextSiza={setTextSiza}
-      pointSiza={pointSiza} setPointSiza={setPointSiza}/>
+      pointSiza={pointSiza} setPointSiza={setPointSiza}
+      pointData={pointData} setPointData={setPointData}
+      polygonData={polygonData} setPolygonData={setPolygonData}
+      polygonDic={polygonDic} setPolygonDic={setPolygonDic}/>
       <div className="harmovis_area">
         <DeckGL
           views={new OrbitView({orbitAxis: 'Z', fov: 50})}
@@ -203,20 +244,8 @@ const App = (props)=>{
                 id:'LineLayer',
                 data: [
                   {sourcePosition:[50,0,0],targetPosition:[-50,0,0],color:[255,0,0,255]},
-                  {sourcePosition:[50,50,50],targetPosition:[-50,50,50],color:[255,0,0,255]},
-                  {sourcePosition:[50,50,-50],targetPosition:[-50,50,-50],color:[255,0,0,255]},
-                  {sourcePosition:[50,-50,50],targetPosition:[-50,-50,50],color:[255,0,0,255]},
-                  {sourcePosition:[50,-50,-50],targetPosition:[-50,-50,-50],color:[255,0,0,255]},
                   {sourcePosition:[0,50,0],targetPosition:[0,-50,0],color:[255,255,0,255]},
-                  {sourcePosition:[50,50,50],targetPosition:[50,-50,50],color:[255,255,0,255]},
-                  {sourcePosition:[50,50,-50],targetPosition:[50,-50,-50],color:[255,255,0,255]},
-                  {sourcePosition:[-50,50,50],targetPosition:[-50,-50,50],color:[255,255,0,255]},
-                  {sourcePosition:[-50,50,-50],targetPosition:[-50,-50,-50],color:[255,255,0,255]},
                   {sourcePosition:[0,0,50],targetPosition:[0,0,-50],color:[0,255,255,255]},
-                  {sourcePosition:[50,50,50],targetPosition:[50,50,-50],color:[0,255,255,255]},
-                  {sourcePosition:[50,-50,50],targetPosition:[50,-50,-50],color:[0,255,255,255]},
-                  {sourcePosition:[-50,50,50],targetPosition:[-50,50,-50],color:[0,255,255,255]},
-                  {sourcePosition:[-50,-50,50],targetPosition:[-50,-50,-50],color:[0,255,255,255]},
                 ],
                 coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
                 getWidth: 1,
@@ -230,14 +259,6 @@ const App = (props)=>{
                   {coordinate:[52,0,0],text:'x',color:[255,0,0,255]},{coordinate:[-52,0,0],text:'x',color:[255,0,0,255]},
                   {coordinate:[0,52,0],text:'y',color:[255,255,0,255]},{coordinate:[0,-52,0],text:'y',color:[255,255,0,255]},
                   {coordinate:[0,0,52],text:'z',color:[0,255,255,255]},{coordinate:[0,0,-52],text:'z',color:[0,255,255,255]},
-                  {coordinate:[52,52,52],text:'[50,50,50]',color:[255,255,255,255]},
-                  {coordinate:[-52,52,52],text:'[-50,50,50]',color:[255,255,255,255]},
-                  {coordinate:[52,-52,52],text:'[50,-50,50]',color:[255,255,255,255]},
-                  {coordinate:[52,52,-52],text:'[50,50,-50]',color:[255,255,255,255]},
-                  {coordinate:[-52,-52,52],text:'[-50,-50,50]',color:[255,255,255,255]},
-                  {coordinate:[-52,52,-52],text:'[-50,50,-50]',color:[255,255,255,255]},
-                  {coordinate:[52,-52,-52],text:'[50,-50,-50]',color:[255,255,255,255]},
-                  {coordinate:[-52,-52,-52],text:'[-50,-50,-50]',color:[255,255,255,255]},
                 ],
                 coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
                 characterSet: 'auto',
@@ -248,20 +269,12 @@ const App = (props)=>{
                 getTextAnchor: 'start',
                 opacity: 1,
               }),
-              new PolygonLayer({
-                id: 'PolygonLayer',
-                data: [
-                  {polygon:[[50,50,0],[-50,50,0],[-50,-50,0],[50,-50,0],[50,50,0]],color:[255,255,255,255]}
-                ],
-                getFillColor: x => x.color,
-                opacity: 0.25,
-              }),
               text3dData.length > 0 ? getPointCloudLayer(text3dData):null,
-              text3dData.length > 0 ? getTextLayer(text3dData):null,
+              text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
+              text3dData.length > 0 ? getPolygonLayer(text3dData):null,
           ]}
         />
       </div>
-      <MovingImage titleimglist={titleimglist}/>
       <div className="harmovis_footer">
         target:{`[${viewState.target[0]},${viewState.target[1]},${viewState.target[2]}]`}&nbsp;
         rotationX:{viewState.rotationX}&nbsp;
@@ -286,176 +299,75 @@ const App = (props)=>{
 }
 export default connectToHarmowareVis(App);
 
-const MovingImage = (props)=>{
-  return(<div className="imagecanvas">{props.titleimglist.map((titleimg,idx)=>{
-    const top = (idx*0)%window.innerHeight
-    const left = (idx*0)%window.innerWidth
-    return(<MovingElement key={idx} imgsrc={titleimg} title={`${idx+1} : ${titleimg}`}
-      style={{top:top,left:left,...props.style}}
-      className={props.className}/>)
-  })}</div>
-  )
-}
-MovingImage.defaultProps = {
-  className: "click-and-move",
-  style: {}
-}
-
-const MovingElement = (props)=>{
-  const {className, imgsrc, style, title} = props
-  let dragged = {target:undefined,x:0,y:0,degree:0,rotate:0,scaleX:1,scaleY:1}
-  const imgRef = React.useRef(undefined)
-
-  const mouseup = event=>{
-    event.preventDefault()
-    const drag = document.getElementsByClassName('drag')[0]
-    if(drag){
-      drag.classList.remove('drag')
-      dragged = {target:undefined,x:0,y:0,degree:0,rotate:0,scaleX:1,scaleY:1}
-    }
-    const rotate = document.getElementsByClassName('rotate')[0]
-    if(rotate){
-      rotate.classList.remove('rotate')
-      dragged = {target:undefined,x:0,y:0,degree:0,rotate:0,scaleX:1,scaleY:1}
-    }
-  }
-
-  React.useEffect(()=>{
-    if(imgRef.current !== undefined){
-      imgRef.current.ondragstart = ()=>false
-      imgRef.current.addEventListener('mousedown',event=>{
-        const targetclassName = event.target.className
-        if(targetclassName.includes(className)){
-          dragged.target = event.target
-        }else{
-          dragged.target = event.target.closest(`.${className}`)
-        }
-        dragged.x = event.pageX - dragged.target.offsetLeft
-        dragged.y = event.pageY - dragged.target.offsetTop
-        dragged.degree = (Math.atan2(event.pageY-(dragged.target.offsetTop+(dragged.target.clientHeight/2)),
-        event.pageX-(dragged.target.offsetLeft+(dragged.target.clientWidth/2))) * 180 / Math.PI) + 180
-        const transform = dragged.target.style.transform
-        if(transform.includes('rotate')){
-          const rotate = transform.match(/rotate\(-{0,1}[0-9.]+deg\)/g)[0]
-          dragged.rotate = parseFloat(rotate.match(/-{0,1}[0-9.]+/g)[0])
-        }else{
-          dragged.rotate = 0
-        }
-
-        if(transform.includes('scaleX')){
-          const scaleX = transform.match(/scaleX\(-{0,1}[0-9.]+\)/g)[0]
-          dragged.scaleX = parseFloat(scaleX.match(/-{0,1}[0-9.]+/g)[0])
-        }else{
-          dragged.scaleX = 1
-        }
-        if(transform.includes('scaleY')){
-          const scaleY = transform.match(/scaleY\(-{0,1}[0-9.]+\)/g)[0]
-          dragged.scaleY = parseFloat(scaleY.match(/-{0,1}[0-9.]+/g)[0])
-        }else{
-          dragged.scaleY = 1
-        }
-
-        if(event.ctrlKey){
-          dragged.target.classList.add('rotate')
-        }else{
-          dragged.target.classList.add('drag')
-        }
-        const select = document.getElementsByClassName('select')
-        for(const e of select){
-          e.classList.remove('select')
-        }
-        dragged.target.classList.add('select')
-      })
-      imgRef.current.addEventListener('mousemove', event=>{
-        event.preventDefault()
-        if(dragged.target !== undefined){
-          const drag = document.getElementsByClassName('drag')[0]
-          if(drag){
-            dragged.target.style.top = event.pageY - dragged.y + "px";
-            dragged.target.style.left = event.pageX - dragged.x + "px";
-          }
-          const rotate = document.getElementsByClassName('rotate')[0]
-          if(rotate){
-            const degree = (Math.atan2(event.pageY-(dragged.target.offsetTop+(dragged.target.clientHeight/2)),
-            event.pageX-(dragged.target.offsetLeft+(dragged.target.clientWidth/2))) * 180 / Math.PI) + 180
-            if(dragged.degree !== degree){
-              const rotate = (dragged.rotate - (dragged.degree - degree)) % 360
-              dragged.target.style.transform = `rotate(${rotate}deg) scaleX(${dragged.scaleX})  scaleY(${dragged.scaleY})`;
-            }
-          }
-        }
-      })
-      imgRef.current.addEventListener('mouseup', event=>mouseup(event))
-      imgRef.current.addEventListener('mouseleave', event=>mouseup(event))
-      imgRef.current.addEventListener('mouseout', event=>mouseup(event))
-      imgRef.current.addEventListener('wheel', event=>{
-        console.log(`wheelDelta:${event.wheelDelta}`)
-      })
-    }
-  },[imgRef])
-
-  return(
-    <div><img draggable={false} ref={imgRef} className={className} src={imgsrc} style={style} title={title}/></div>
-  )
-}
-MovingElement.defaultProps = {
-  className: "click-and-move",
-  style: {}
-}
-
-const InitialFileRead = (props)=>{
+const InitialFileRead1 = (props)=>{
   const { actions } = props;
   const request = new XMLHttpRequest();
-  request.open('GET', 'data/3d_time_data.csv');
+  let pointData = null
+  request.open('GET', 'data/PointDemoData.json');
   request.responseType = 'text';
   request.send();
   actions.setLoading(true);
   actions.setMovesBase([]);
   request.onload = function() {
-    let text3dData = null;
     try {
-      const linedata = request.response.split(/(\r\n|\n)/);
-      const readdata = linedata.map((lineArray)=>{
-        return lineArray.split(',')
-      })
-      const dataLength = readdata[0].length
-      const filterData = readdata.filter((data)=>data.length===dataLength)
-      let endTime = Number.MIN_SAFE_INTEGER
-      const workData = filterData.map((data)=>{
-        const [strElapsedtime,shikibetu,x,y,z,text] = data
-        const elapsedtime = parseInt(strElapsedtime)*10
-        endTime = Math.max(endTime,elapsedtime)
-        return {
-            elapsedtime:elapsedtime,
-            shikibetu:parseInt(shikibetu),
-            position: [parseFloat(x),parseFloat(y),parseFloat(z)],
-            text: text.slice(1,-1),
-        }
-      })
-      const idTable = workData.reduce((prev,current)=>{
-        if(String(current.shikibetu) in prev){
-            prev[current.shikibetu].push(current)
-        }else{
-            prev[current.shikibetu] = [current]
-        }
-        return prev
-      },{})
-      text3dData = Object.values(idTable).map((data)=>{
-        data.push({elapsedtime:endTime+1})
-        return {operation:data}
-      })
+      try {
+        pointData = JSON.parse(request.response);
+      } catch (exception) {
+        actions.setLoading(false);
+        return;
+      }
+      console.log({pointData})
+      actions.setInputFilename({ PointFileName: 'PointDemoData.json' });
+      const argProps = {...props, pointData}
+      setTimeout(()=>{InitialFileRead2(argProps)},200)
     } catch (exception) {
-      actions.setInputFilename({ text3dDataFileName: null });
+      actions.setInputFilename({ PointFileName: null });
+      actions.setInputFilename({ PolygonFileName: null });
       actions.setLoading(false);
       return;
     }
-    console.log({text3dData})
-    actions.setInputFilename({ text3dDataFileName: 'sample data' });
-    actions.setMovesBase(text3dData);
-    actions.setRoutePaths([]);
-    actions.setClicked(null);
-    actions.setAnimatePause(false);
-    actions.setAnimateReverse(false);
-    actions.setLoading(false);
+  }
+}
+const InitialFileRead2 = (props)=>{
+  const { actions, pointData, setPointData, setPolygonData, setPolygonDic } = props;
+  const request = new XMLHttpRequest();
+  let polygonData = null
+  request.open('GET', 'data/PolygonDemoData.json');
+  request.responseType = 'text';
+  request.send();
+  request.onload = function() {
+    try {
+      try {
+        polygonData = JSON.parse(request.response);
+      } catch (exception) {
+        actions.setInputFilename({ PointFileName: null });
+        actions.setLoading(false);
+        return;
+      }
+      console.log({polygonData})
+      actions.setInputFilename({ PolygonFileName: 'PolygonDemoData.json' });
+      const polygonDic = polygonData.reduce((prev,current)=>{
+        if(String(current.AreaID) in prev){
+          prev[current.AreaID].push(current)
+        }else{
+          prev[current.AreaID] = [current]
+        }
+        return prev
+      })
+      console.log({polygonDic})
+      setPointData(pointData)
+      setPolygonData(polygonData)
+      setPolygonDic(polygonDic)
+      actions.setRoutePaths([]);
+      actions.setClicked(null);
+      actions.setAnimatePause(true);
+      actions.setAnimateReverse(false);
+      actions.setLoading(false);
+    } catch (exception) {
+      actions.setInputFilename({ PointFileName: null });
+      actions.setInputFilename({ PolygonFileName: null });
+      actions.setLoading(false);
+      return;
+    }
   }
 }

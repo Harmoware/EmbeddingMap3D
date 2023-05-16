@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { PlayButton, PauseButton, ForwardButton, ReverseButton,
    ElapsedTimeValue, ElapsedTimeRange } from 'harmoware-vis';
-import { Text3dDataInput } from './text-3d-data-input';
+import { PointDataInput } from './PointDataInput';
+import { PolygonDataInput } from './PolygonDataInput';
 
 export default class Controller extends React.Component {
   onClick(buttonType){
@@ -72,18 +73,33 @@ export default class Controller extends React.Component {
   render() {
 
     const { actions, inputFileName, animatePause, animateReverse, leading,
-      settime, timeBegin, timeLength, clusterNum, textSiza, pointSiza } = this.props;
-    const { text3dDataFileName } = inputFileName;
+      settime, timeBegin, timeLength, clusterNum, textSiza, pointSiza,
+      pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic } = this.props;
+    const { PointFileName, PolygonFileName } = inputFileName;
 
     return (
         <div className="harmovis_controller">
             <ul className="flex_list">
             <li className="flex_row">
                 <div className="harmovis_input_button_column" title='3D object data selection'>
-                <label htmlFor="Text3dDataInput">
-                3D text data selection<Text3dDataInput actions={actions} id="Text3dDataInput"/>
+                <label htmlFor="PointDataInput">
+                Point data selection<PointDataInput actions={actions} id="PointDataInput"
+                pointData={pointData} setPointData={setPointData}
+                polygonData={polygonData} setPolygonData={setPolygonData}
+                polygonDic={polygonDic} setPolygonDic={setPolygonDic}/>
                 </label>
-                <div>{text3dDataFileName}</div>
+                <div>{PointFileName}</div>
+                </div>
+            </li>
+            <li className="flex_row">
+                <div className="harmovis_input_button_column" title='3D object data selection'>
+                <label htmlFor="PolygonDataInput">
+                Polygon data selection<PolygonDataInput actions={actions} id="PolygonDataInput"
+                pointData={pointData} setPointData={setPointData}
+                polygonData={polygonData} setPolygonData={setPolygonData}
+                polygonDic={polygonDic} setPolygonDic={setPolygonDic}/>
+                </label>
+                <div>{PolygonFileName}</div>
                 </div>
             </li>
             <li className="flex_row">
@@ -97,7 +113,6 @@ export default class Controller extends React.Component {
             <li className="flex_row">
               <button onClick={this.onClick.bind(this,'zoom-in')} className='harmovis_button'>＋</button>
               <button onClick={this.onClick.bind(this,'zoom-out')} className='harmovis_button'>－</button>
-              <button onClick={this.onClick.bind(this,'reset')} className='harmovis_button'>RESET</button>
             </li>
             <li className="flex_row">
               <label htmlFor="ElapsedTimeValue">elapsedTime</label>
@@ -109,22 +124,9 @@ export default class Controller extends React.Component {
               min={leading*-1} style={{'width':'100%'}} />
             </li>
             <li className="flex_row">
-            <label htmlFor="setClusterNum">Cluster Number</label>
-              <input type="range" value={clusterNum} min={1} max={10} step={1} onChange={this.setClusterNum.bind(this)}
-                className='harmovis_input_range' id='setClusterNum' title={clusterNum}/>
-            </li>
-            <li className="flex_row">
-            <label htmlFor="setTextSiza">{`Text Size : `}</label>
-              <input type="range" value={textSiza} min={0} max={20} step={0.2} onChange={this.setTextSiza.bind(this)}
-                className='harmovis_input_range' id='setTextSiza' title={textSiza}/>
-            </li>
-            <li className="flex_row">
             <label htmlFor="setPointSiza">{`Point Size : `}</label>
               <input type="range" value={pointSiza} min={0} max={8} step={0.1} onChange={this.setPointSiza.bind(this)}
                 className='harmovis_input_range' id='setPointSiza' title={pointSiza}/>
-            </li>
-            <li className="flex_row">
-              <button onClick={this.onClickAlign.bind(this)} className='harmovis_button'>Img Align</button>
             </li>
             </ul>
             <TransformController/>

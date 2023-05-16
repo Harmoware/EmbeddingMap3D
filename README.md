@@ -1,3 +1,2 @@
-# Harmoware-VIS-3D-Text
-![topimage](topimage.jpg)
+# EmbeddingMap3D
 
