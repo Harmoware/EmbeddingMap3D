@@ -44,6 +44,11 @@ export default class Controller extends React.Component {
     setPointSiza(+e.target.value)
   }
 
+  setPolypoiMove(e){
+    const { setPolypoiMove } = this.props;
+    setPolypoiMove(+e.target.value)
+  }
+
   onClickAlign(){
     const clickAndMove = document.getElementsByClassName('click-and-move')
     let maxwidth = 0
@@ -74,7 +79,7 @@ export default class Controller extends React.Component {
 
     const { actions, inputFileName, animatePause, animateReverse, leading,
       settime, timeBegin, timeLength, clusterNum, textSiza, pointSiza,
-      pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic } = this.props;
+      pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic, polypoiMove } = this.props;
     const { PointFileName, PolygonFileName } = inputFileName;
 
     return (
@@ -101,6 +106,11 @@ export default class Controller extends React.Component {
                 </label>
                 <div>{PolygonFileName}</div>
                 </div>
+            </li>
+            <li className="flex_row">
+            <label htmlFor="setPolypoiMove">{`Animation :`}</label>
+              <input type="range" value={polypoiMove} min={0} max={100} step={1} onChange={this.setPolypoiMove.bind(this)}
+                className='harmovis_input_range' id='setPolypoiMove' title={polypoiMove}/>
             </li>
             <li className="flex_row">
               {animatePause ?

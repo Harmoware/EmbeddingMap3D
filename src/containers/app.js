@@ -42,6 +42,8 @@ const App = (props)=>{
   const [pointData, setPointData] = useState(null);
   const [polygonData, setPolygonData] = useState(null);
   const [polygonDic, setPolygonDic] = useState(null);
+  const [polypoiMove, setPolypoiMove] = useState(10);
+  const [polypoiData, setPolypoiData] = useState([]);
   const { actions, viewport, movesbase, movedData, loading, settime } = props;
 
   const text3dData = movedData.filter(x=>x.position)
@@ -70,8 +72,31 @@ const App = (props)=>{
       });
       console.log({analyzeData})
       actions.setMovesBase(analyzeData);
+      setPolypoiMove(0)
     }
   },[pointData,polygonDic])
+
+  React.useEffect(()=>{
+    const polyData = text3dData.filter(x=>x.polygon)
+    if(polypoiMove <= 0 && polypoiMove > 100){
+      setPolypoiData(polyData)
+    }else{
+      if(pointData !== null && polygonDic !== null){
+        const transData = polyData.map((data)=>{
+          const transCorner = data.polygon.map((corner)=>{
+            const rate = polypoiMove/100
+            return [
+              corner[0] - (corner[0] - data.position[0]) * rate,
+              corner[1] - (corner[1] - data.position[1]) * rate,
+              corner[2] - (corner[2] - data.position[2]) * rate,
+            ]
+          })
+          return {...data, polygon:transCorner}
+        })
+        setPolypoiData(transData)
+      }
+    }
+  },[polypoiMove])
 
   React.useEffect(()=>{
     if(movesbase.length === 0){
@@ -162,7 +187,7 @@ const App = (props)=>{
   const onClick = (el)=>{
     if (el && el.layer && el.object && el.object.AreaID) {
       console.log(`id:${el.layer.id}`)
-      if(el.layer.id === "PointCloudLayer" || el.layer.id === "SelPointCloudLayer" || el.layer.id === "PolygonLayer"){
+      if(el.layer.id === "PointCloudLayer" || el.layer.id === "SelPointCloudLayer" || el.layer.id === "PolygonLayer" || el.layer.id === "PolyPoiMoveLayer"){
         const index = selectPointId.findIndex((value)=>value === el.object.AreaID)
         if(index < 0){
           selectPointId.push(el.object.AreaID)
@@ -211,10 +236,11 @@ const App = (props)=>{
   }
 
   const getPolygonLayer = (text3dData)=>{
-    const polygonData = text3dData.filter(x=>x.polygon)
+    if(polypoiMove > 0){return null}
+    const polyData = text3dData.filter(x=>x.polygon)
     return new PolygonLayer({
       id: 'PolygonLayer',
-      data: polygonData,
+      data: polyData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       getFillColor: x => x.polyColor,
       pickable: true,
@@ -225,6 +251,24 @@ const App = (props)=>{
     });
   }
 
+  const getPolyPoiMoveLayer = ()=>{
+    if(polypoiData.length > 0){
+      return new PolygonLayer({
+        id: 'PolyPoiMoveLayer',
+        data: polypoiData,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getFillColor: x => x.polyColor,
+        pickable: true,
+        stroked: false,
+        opacity: 0.5,
+        onHover,
+        onClick
+      });
+    }else{
+      return null
+    }
+  }
+
   return (
     <Container {...props}>
       <Controller {...props} updateViewState={updateViewState} viewState={viewState}
@@ -233,7 +277,8 @@ const App = (props)=>{
       pointSiza={pointSiza} setPointSiza={setPointSiza}
       pointData={pointData} setPointData={setPointData}
       polygonData={polygonData} setPolygonData={setPolygonData}
-      polygonDic={polygonDic} setPolygonDic={setPolygonDic}/>
+      polygonDic={polygonDic} setPolygonDic={setPolygonDic}
+      polypoiMove={polypoiMove} setPolypoiMove={setPolypoiMove}/>
       <div className="harmovis_area">
         <DeckGL
           views={new OrbitView({orbitAxis: 'Z', fov: 50})}
@@ -272,6 +317,7 @@ const App = (props)=>{
               text3dData.length > 0 ? getPointCloudLayer(text3dData):null,
               text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
               text3dData.length > 0 ? getPolygonLayer(text3dData):null,
+              getPolyPoiMoveLayer(),
           ]}
         />
       </div>

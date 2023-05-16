@@ -3,9 +3,6 @@ import React from 'react';
 export const PolygonDataInput = (props)=>{
     const { actions, id,
         polygonData, setPolygonData, polygonDic, setPolygonDic } = props;
-    if(!polygonDic){
-        console.log({props})
-    }
 
     const onSelect = (e)=>{
         const reader = new FileReader();
