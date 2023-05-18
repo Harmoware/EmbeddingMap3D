@@ -78,20 +78,26 @@ const App = (props)=>{
 
   React.useEffect(()=>{
     const polyData = text3dData.filter(x=>x.polygon)
-    if(polypoiMove <= 0 && polypoiMove > 100){
+    if(polypoiMove <= 0 && polypoiMove > 200){
       setPolypoiData(polyData)
     }else{
       if(pointData !== null && polygonDic !== null){
         const transData = polyData.map((data)=>{
-          const transCorner = data.polygon.map((corner)=>{
-            const rate = polypoiMove/100
+          const {polygon, position} = data
+          const rate = polypoiMove/200
+          const transCorner = polygon.map((corner)=>{
             return [
-              corner[0] - (corner[0] - data.position[0]) * rate,
-              corner[1] - (corner[1] - data.position[1]) * rate,
-              corner[2] - (corner[2] - data.position[2]) * rate,
+              corner[0] - (corner[0] - position[0]) * rate,
+              corner[1] - (corner[1] - position[1]) * rate,
+              corner[2] - (corner[2] - position[2]) * rate,
             ]
           })
-          return {...data, polygon:transCorner}
+          const transPosition = [
+            polygon[0][0] - (polygon[0][0] - position[0]) * rate,
+            polygon[0][1] - (polygon[0][1] - position[1]) * rate,
+            polygon[0][2] - (polygon[0][2] - position[2]) * rate,
+          ]
+          return {...data, polygon:transCorner, position:transPosition}
         })
         setPolypoiData(transData)
       }
@@ -207,21 +213,24 @@ const App = (props)=>{
   }
 
   const getPointCloudLayer = (text3dData)=>{
+    const opacity = polypoiMove / 200
     return new PointCloudLayer({
       id: 'PointCloudLayer',
-      data: text3dData,
+      data: polypoiData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       getPosition: x => x.position,
       getColor: x => x.color,
       pointSize: pointSiza,
       pickable: true,
+      opacity: opacity,
       onHover,
       onClick
     });
   }
 
   const getSelPointCloudLayer = (text3dData)=>{
-    const dspdata = text3dData.filter((x)=>selectPointId.includes(x.AreaID))
+    const opacity = polypoiMove / 200
+    const dspdata = polypoiData.filter((x)=>selectPointId.includes(x.AreaID))
     return new PointCloudLayer({
       id: 'SelPointCloudLayer',
       data: dspdata,
@@ -230,6 +239,7 @@ const App = (props)=>{
       getColor: x => x.color,
       pointSize: pointSiza+2,
       pickable: true,
+      opacity: opacity,
       onHover,
       onClick
     });
@@ -245,7 +255,7 @@ const App = (props)=>{
       getFillColor: x => x.polyColor,
       pickable: true,
       stroked: false,
-      opacity: 0.5,
+      opacity: 1,
       onHover,
       onClick
     });
@@ -260,7 +270,7 @@ const App = (props)=>{
         getFillColor: x => x.polyColor,
         pickable: true,
         stroked: false,
-        opacity: 0.5,
+        opacity: 1,
         onHover,
         onClick
       });
@@ -314,10 +324,10 @@ const App = (props)=>{
                 getTextAnchor: 'start',
                 opacity: 1,
               }),
-              text3dData.length > 0 ? getPointCloudLayer(text3dData):null,
-              text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
               text3dData.length > 0 ? getPolygonLayer(text3dData):null,
               getPolyPoiMoveLayer(),
+              text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
+              text3dData.length > 0 ? getPointCloudLayer(text3dData):null,
           ]}
         />
       </div>

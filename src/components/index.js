@@ -109,7 +109,7 @@ export default class Controller extends React.Component {
             </li>
             <li className="flex_row">
             <label htmlFor="setPolypoiMove">{`Animation :`}</label>
-              <input type="range" value={polypoiMove} min={0} max={100} step={1} onChange={this.setPolypoiMove.bind(this)}
+              <input type="range" value={polypoiMove} min={0} max={200} step={1} onChange={this.setPolypoiMove.bind(this)}
                 className='harmovis_input_range' id='setPolypoiMove' title={polypoiMove}/>
             </li>
             <li className="flex_row">
