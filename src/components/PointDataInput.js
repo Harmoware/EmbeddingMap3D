@@ -11,7 +11,7 @@ export const PointDataInput = (props)=>{
             return;
         }
         actions.setLoading(true);
-        actions.setMovesBase([]);
+        //actions.setMovesBase([]);
         setPointData(null)
         actions.setInputFilename({ PointFileName: null });
         reader.readAsText(file);
@@ -40,7 +40,7 @@ export const PointDataInput = (props)=>{
 
     const onClick = (e)=>{
         actions.setInputFilename({ PointFileName: null });
-        actions.setMovesBase([]);
+        //actions.setMovesBase([]);
         e.target.value = '';
     };
 

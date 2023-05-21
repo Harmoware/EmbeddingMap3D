@@ -11,7 +11,7 @@ export const PolygonDataInput = (props)=>{
             return;
         }
         actions.setLoading(true);
-        actions.setMovesBase([]);
+        //actions.setMovesBase([]);
         setPolygonData(null)
         setPolygonDic(null)
         actions.setInputFilename({ PolygonFileName: null });
@@ -50,7 +50,7 @@ export const PolygonDataInput = (props)=>{
 
     const onClick = (e)=>{
         actions.setInputFilename({ PolygonFileName: null });
-        actions.setMovesBase([]);
+        //actions.setMovesBase([]);
         e.target.value = '';
     };
 

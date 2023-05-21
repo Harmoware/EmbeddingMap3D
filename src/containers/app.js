@@ -42,37 +42,170 @@ const App = (props)=>{
   const [pointData, setPointData] = useState(null);
   const [polygonData, setPolygonData] = useState(null);
   const [polygonDic, setPolygonDic] = useState(null);
-  const [polypoiMove, setPolypoiMove] = useState(10);
+  const [polypoiMove, setPolypoiMove] = useState(0);
   const [polypoiData, setPolypoiData] = useState([]);
+  const [clusterList, setClusterList] = useState([]);
   const { actions, viewport, movesbase, movedData, loading, settime } = props;
 
   const text3dData = movedData.filter(x=>x.position)
   const dataset = text3dData.map((x)=>x.position).sort((a,b)=>{a[0]-b[0]})
 
+  const autoRotation = async (argRotationOrbit,direction)=>{
+    const rotationOrbit = argRotationOrbit+direction
+    const transitionDuration = ((55*1000)/360)*Math.abs(direction)
+    updateViewState({...viewState, rotationOrbit, transitionDuration})
+    if(App.autoRotationId){clearTimeout(App.autoRotationId)}
+    App.autoRotationId = setTimeout(autoRotation,transitionDuration,rotationOrbit,direction)
+  }
+
+  const autoPolypoiMove = async (argPolypoiMove,direction)=>{
+    const polypoiMove = argPolypoiMove + direction
+    if(polypoiMove < 0 || polypoiMove > 200){
+      if(App.autoPolypoiMoveId){
+        clearTimeout(App.autoPolypoiMoveId)
+        App.autoPolypoiMoveId = null
+      }
+      return
+    }
+    const duration = 10
+    setPolypoiMove(polypoiMove)
+    if(App.autoPolypoiMoveId){clearTimeout(App.autoPolypoiMoveId)}
+    App.autoPolypoiMoveId = setTimeout(autoPolypoiMove,duration,polypoiMove,direction)
+  }
+
+  document.onkeydown = (event)=>{
+    const tagName = event.target.tagName
+    console.log(`tagName:${tagName}`)
+    if(tagName !== "INPUT" && tagName !== "SELECT"){
+      const keyName = event.key
+      console.log(`keypress:${keyName}`)
+      if(keyName === "8"){
+        document.getElementById('deckgl-wrapper').focus()
+        if(App.autoRotationId){
+          clearTimeout(App.autoRotationId);
+          App.autoRotationId = null
+        }
+      }
+      if(keyName === "7"){
+        autoRotation(viewState.rotationOrbit,-1)
+      }
+      if(keyName === "9"){
+        autoRotation(viewState.rotationOrbit,1)
+      }
+      if(keyName === "5"){
+        //actions.setAnimateReverse(!props.animateReverse)
+        /*if(App.autoPolypoiMoveId){
+          clearTimeout(App.autoPolypoiMoveId);
+          App.autoPolypoiMoveId = null
+        }*/
+      }
+      if(keyName === "4"){
+        //actions.addMinutes(-5)
+        autoPolypoiMove(polypoiMove,-3)
+      }
+      if(keyName === "6"){
+        //actions.addMinutes(5)
+        autoPolypoiMove(polypoiMove,3)
+      }
+      if(keyName === "/"){
+        actions.setAnimateReverse(!props.animateReverse)
+      }
+      if(keyName === "2"){
+        actions.setAnimatePause(!props.animatePause)
+      }
+      if(keyName === "1" && props.animatePause === true){
+        actions.setTime(props.settime-1)
+      }
+      if(keyName === "3" && props.animatePause === true){
+        actions.setTime(props.settime+1)
+      }
+      if(keyName === "+"){
+        const value = event.shiftKey?0.25:0.5
+        updateViewState({...viewState, zoom:(viewState.zoom+value), transitionDuration: 100,})
+      }
+      if(keyName === "-"){
+        const value = event.shiftKey?0.25:0.5
+        updateViewState({...viewState, zoom:(viewState.zoom-value), transitionDuration: 100,})
+      }
+      if(keyName === "*"){
+        updateViewState(INITIAL_VIEW_STATE)
+      }
+    }
+  }
+
   React.useEffect(()=>{
+    setTimeout(()=>{document.getElementById('deckgl-wrapper').focus()},1000)
     setTimeout(()=>{InitialFileRead1({...props,setPointData,setPolygonData,setPolygonDic})},200)
   },[])
 
   React.useEffect(()=>{
+    actions.setMovesBase([]);
     if(pointData !== null && polygonDic !== null){
+      let minElapsedtime = 2147483647;
+      let maxElapsedtime = -2147483648;
+      const setclusterList = []
       const analyzeData = pointData.map((data)=>{
-          const { xyz, Color, ...others } = data;
-          if(polygonDic[others.AreaID]){
-              const {Polygon,Color:polyColor,...polyOthers} = polygonDic[others.AreaID][0]
+        const { xyz, Color, time, text, ...others } = data;
+        if(data.cluster !== undefined && !setclusterList.includes(+data.cluster)){
+          setclusterList.push(+data.cluster)
+        }
+        if(polygonDic[others.AreaID]){
+          const {Polygon,Color:polyColor,...polyOthers} = polygonDic[others.AreaID][0]
+          if(Array.isArray(xyz) && Array.isArray(xyz[0])){
+            if(xyz.length > 1){
+              const operation = xyz.map((elxyz,idx)=>{
+                minElapsedtime = Math.min(minElapsedtime,time[idx]);
+                maxElapsedtime = Math.max(maxElapsedtime,time[idx]+1);
+                let settext = ""
+                if(text && text[idx]){settext = text[idx]}
+                return {polygon:Polygon, polyColor, position:elxyz, color:Color[idx], elapsedtime:time[idx], text:settext}
+              })
+              const lastIdx = xyz.length-1
+              operation.push({polygon:Polygon, polyColor, position:xyz[lastIdx], color:Color[lastIdx], elapsedtime:(time[lastIdx]+1)})
+              return {...polyOthers, ...others, operation}
+            }else{
+              minElapsedtime = Math.min(minElapsedtime,time[0]);
+              maxElapsedtime = Math.max(maxElapsedtime,time[0]+1);
+              let settext = ""
+              if(text && text[0]){settext = text[0]}
               return {...polyOthers, ...others, operation:[
-                  {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:0},
-                  {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:1}
+                {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0], text:settext},
+                {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0]+1, text:settext}
               ]}
+            }
           }else{
-              return {...others, operation:[
-                  {position:xyz, color:Color, elapsedtime:0},
-                  {position:xyz, color:Color, elapsedtime:1}
-              ]}
+            minElapsedtime = Math.min(minElapsedtime,time);
+            maxElapsedtime = Math.max(maxElapsedtime,time+1);
+            return {...polyOthers, ...others, operation:[
+              {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time, text:(text || "")},
+              {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time+1, text:(text || "")}
+            ]}
           }
+        }else{
+          if(Array.isArray(time)){
+            const operation = time.map((eltime)=>{
+              minElapsedtime = Math.min(minElapsedtime,eltime);
+              maxElapsedtime = Math.max(maxElapsedtime,eltime);
+              return {elapsedtime:eltime}
+            })
+            return {...others, operation}
+          }else{
+            minElapsedtime = Math.min(minElapsedtime,time);
+            maxElapsedtime = Math.max(maxElapsedtime,time);
+            return {...others, operation:[{elapsedtime:time}]}
+          }
+        }
       });
       console.log({analyzeData})
+      actions.setTimeBegin(minElapsedtime)
+      actions.setTimeLength(maxElapsedtime - minElapsedtime)
       actions.setMovesBase(analyzeData);
       setPolypoiMove(0)
+      setclusterList.sort((a, b) => (a - b))
+      console.log({setclusterList})
+      setClusterList(setclusterList.map((cluster)=>{
+        return {cluster, check:true}
+      }))
     }
   },[pointData,polygonDic])
 
@@ -212,13 +345,23 @@ const App = (props)=>{
     return 0
   }
 
+  const getPosition = (x)=>{
+    if(x.cluster === undefined){
+      return x.position
+    }else
+    if(clusterList.find((el)=>el.cluster === x.cluster).check){
+      return x.position
+    }
+    return [1000,1000,1000]
+  }
+
   const getPointCloudLayer = (text3dData)=>{
     const opacity = polypoiMove / 200
     return new PointCloudLayer({
       id: 'PointCloudLayer',
-      data: polypoiData,
+      data: App.autoPolypoiMoveId ? polypoiData : text3dData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPosition: x => x.position,
+      getPosition,
       getColor: x => x.color,
       pointSize: pointSiza,
       pickable: true,
@@ -230,12 +373,12 @@ const App = (props)=>{
 
   const getSelPointCloudLayer = (text3dData)=>{
     const opacity = polypoiMove / 200
-    const dspdata = polypoiData.filter((x)=>selectPointId.includes(x.AreaID))
+    const dspdata = (App.autoPolypoiMoveId ? polypoiData : text3dData).filter((x)=>selectPointId.includes(x.AreaID))
     return new PointCloudLayer({
       id: 'SelPointCloudLayer',
       data: dspdata,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPosition: x => x.position,
+      getPosition,
       getColor: x => x.color,
       pointSize: pointSiza+2,
       pickable: true,
@@ -279,6 +422,25 @@ const App = (props)=>{
     }
   }
 
+  const getTextLayer = (text3dData)=>{
+    const opacity = polypoiMove / 200
+    return new TextLayer({
+      id: 'TextLayer',
+      data: App.autoPolypoiMoveId ? polypoiData : text3dData,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      characterSet: 'auto',
+      getPosition: x => x.position,
+      getText: x => x.text,
+      getColor: x => x.color,
+      getSize: x => textSiza,
+      getTextAnchor: 'start',
+      opacity: opacity,
+      pickable: true,
+      onHover,
+      onClick
+    });
+  }
+
   return (
     <Container {...props}>
       <Controller {...props} updateViewState={updateViewState} viewState={viewState}
@@ -288,7 +450,8 @@ const App = (props)=>{
       pointData={pointData} setPointData={setPointData}
       polygonData={polygonData} setPolygonData={setPolygonData}
       polygonDic={polygonDic} setPolygonDic={setPolygonDic}
-      polypoiMove={polypoiMove} setPolypoiMove={setPolypoiMove}/>
+      polypoiMove={polypoiMove} setPolypoiMove={setPolypoiMove}
+      clusterList={clusterList} setClusterList={setClusterList}/>
       <div className="harmovis_area">
         <DeckGL
           views={new OrbitView({orbitAxis: 'Z', fov: 50})}
@@ -324,6 +487,7 @@ const App = (props)=>{
                 getTextAnchor: 'start',
                 opacity: 1,
               }),
+              text3dData.length > 0 ? getTextLayer(text3dData):null,
               text3dData.length > 0 ? getPolygonLayer(text3dData):null,
               getPolyPoiMoveLayer(),
               text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
@@ -353,6 +517,8 @@ const App = (props)=>{
     </Container>
   );
 }
+App.autoRotationId = null
+App.autoPolypoiMoveId = null
 export default connectToHarmowareVis(App);
 
 const InitialFileRead1 = (props)=>{
@@ -363,7 +529,7 @@ const InitialFileRead1 = (props)=>{
   request.responseType = 'text';
   request.send();
   actions.setLoading(true);
-  actions.setMovesBase([]);
+  //actions.setMovesBase([]);
   request.onload = function() {
     try {
       try {
