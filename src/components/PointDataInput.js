@@ -40,6 +40,7 @@ export const PointDataInput = (props)=>{
 
     const onClick = (e)=>{
         actions.setInputFilename({ PointFileName: null });
+        setPointData(null)
         //actions.setMovesBase([]);
         e.target.value = '';
     };

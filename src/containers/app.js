@@ -45,7 +45,7 @@ const App = (props)=>{
   const [polypoiMove, setPolypoiMove] = useState(0);
   const [polypoiData, setPolypoiData] = useState([]);
   const [clusterList, setClusterList] = useState([]);
-  const { actions, viewport, movesbase, movedData, loading, settime } = props;
+  const { actions, viewport, movesbase, movedData, loading, loopEndPause, timeBegin } = props;
 
   const text3dData = movedData.filter(x=>x.position)
   const dataset = text3dData.map((x)=>x.position).sort((a,b)=>{a[0]-b[0]})
@@ -101,11 +101,11 @@ const App = (props)=>{
       }
       if(keyName === "4"){
         //actions.addMinutes(-5)
-        autoPolypoiMove(polypoiMove,-3)
+        autoPolypoiMove(polypoiMove,-20)
       }
       if(keyName === "6"){
         //actions.addMinutes(5)
-        autoPolypoiMove(polypoiMove,3)
+        autoPolypoiMove(polypoiMove,20)
       }
       if(keyName === "/"){
         actions.setAnimateReverse(!props.animateReverse)
@@ -144,21 +144,22 @@ const App = (props)=>{
       let minElapsedtime = 2147483647;
       let maxElapsedtime = -2147483648;
       const setclusterList = []
-      const analyzeData = pointData.map((data)=>{
+      const filter = pointData.filter(x=>Array.isArray(x.xyz) && x.xyz.length > 0)
+      const analyzeData = filter.map((data)=>{
         const { xyz, Color, time, text, ...others } = data;
         if(data.cluster !== undefined && !setclusterList.includes(+data.cluster)){
           setclusterList.push(+data.cluster)
         }
         if(polygonDic[others.AreaID]){
-          const {Polygon,Color:polyColor,...polyOthers} = polygonDic[others.AreaID][0]
-          if(Array.isArray(xyz) && Array.isArray(xyz[0])){
+          const {Polygon,Color:polyColor,text:polytext="",...polyOthers} = polygonDic[others.AreaID][0]
+          if(Array.isArray(xyz) && Array.isArray(xyz[0]) && xyz[0].length === 3){
             if(xyz.length > 1){
               const operation = xyz.map((elxyz,idx)=>{
                 minElapsedtime = Math.min(minElapsedtime,time[idx]);
                 maxElapsedtime = Math.max(maxElapsedtime,time[idx]+1);
                 let settext = ""
                 if(text && text[idx]){settext = text[idx]}
-                return {polygon:Polygon, polyColor, position:elxyz, color:Color[idx], elapsedtime:time[idx], text:settext}
+                return {polygon:Polygon, polyColor, position:elxyz, color:Color[idx], elapsedtime:time[idx], text:settext, polytext}
               })
               const lastIdx = xyz.length-1
               operation.push({polygon:Polygon, polyColor, position:xyz[lastIdx], color:Color[lastIdx], elapsedtime:(time[lastIdx]+1)})
@@ -169,17 +170,20 @@ const App = (props)=>{
               let settext = ""
               if(text && text[0]){settext = text[0]}
               return {...polyOthers, ...others, operation:[
-                {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0], text:settext},
+                {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0], text:settext, polytext},
                 {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0]+1, text:settext}
               ]}
             }
-          }else{
+          }else
+          if(Array.isArray(xyz) && xyz.length === 3){
             minElapsedtime = Math.min(minElapsedtime,time);
             maxElapsedtime = Math.max(maxElapsedtime,time+1);
             return {...polyOthers, ...others, operation:[
-              {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time, text:(text || "")},
+              {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time, text:(text || ""), polytext},
               {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time+1, text:(text || "")}
             ]}
+          }else{
+            return {...polyOthers, ...others, operation:[{elapsedtime:time}]}
           }
         }else{
           if(Array.isArray(time)){
@@ -201,6 +205,7 @@ const App = (props)=>{
       actions.setTimeLength(maxElapsedtime - minElapsedtime)
       actions.setMovesBase(analyzeData);
       setPolypoiMove(0)
+      setSelectPointId([])
       setclusterList.sort((a, b) => (a - b))
       console.log({setclusterList})
       setClusterList(setclusterList.map((cluster)=>{
@@ -302,12 +307,19 @@ const App = (props)=>{
   },[clusterNum])
 
   React.useEffect(()=>{
+    actions.setNoLoop(true)
     actions.setInitialViewChange(false);
     actions.setSecPerHour(3600);
     actions.setLeading(0);
     actions.setTrailing(0);
     actions.setAnimatePause(true);
   },[])
+
+  React.useEffect(()=>{
+    if(!loopEndPause){
+      actions.setTime(timeBegin)
+    }
+  },[loopEndPause])
 
   const updateState = (updateData)=>{
     setState({...state, ...updateData})
@@ -348,9 +360,11 @@ const App = (props)=>{
   const getPosition = (x)=>{
     if(x.cluster === undefined){
       return x.position
-    }else
-    if(clusterList.find((el)=>el.cluster === x.cluster).check){
-      return x.position
+    }else{
+      const result = clusterList.find((el)=>el.cluster === x.cluster)
+      if(result && result.check){
+        return x.position
+      }
     }
     return [1000,1000,1000]
   }
@@ -391,17 +405,31 @@ const App = (props)=>{
   const getPolygonLayer = (text3dData)=>{
     if(polypoiMove > 0){return null}
     const polyData = text3dData.filter(x=>x.polygon)
-    return new PolygonLayer({
-      id: 'PolygonLayer',
-      data: polyData,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getFillColor: x => x.polyColor,
-      pickable: true,
-      stroked: false,
-      opacity: 1,
-      onHover,
-      onClick
-    });
+    return [
+      new PolygonLayer({
+        id: 'PolygonLayer',
+        data: polyData,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getFillColor: x => x.polyColor,
+        pickable: true,
+        stroked: false,
+        opacity: 1,
+        onHover,
+        onClick
+      }),
+      new TextLayer({
+        id: 'PolygonTextLayer',
+        data: polyData,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        characterSet: 'auto',
+        getPosition: x => x.polygon[0],
+        getText: x => ` ${x.polytext}`,
+        getColor: x => x.polyColor,
+        getSize: x => textSiza,
+        getTextAnchor: 'start',
+        opacity: 1,
+      })
+    ];
   }
 
   const getPolyPoiMoveLayer = ()=>{
@@ -429,15 +457,12 @@ const App = (props)=>{
       data: App.autoPolypoiMoveId ? polypoiData : text3dData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       characterSet: 'auto',
-      getPosition: x => x.position,
+      getPosition,
       getText: x => x.text,
       getColor: x => x.color,
-      getSize: x => textSiza,
+      getSize: x => textSiza * opacity,
       getTextAnchor: 'start',
       opacity: opacity,
-      pickable: true,
-      onHover,
-      onClick
     });
   }
 

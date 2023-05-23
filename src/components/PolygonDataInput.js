@@ -50,6 +50,8 @@ export const PolygonDataInput = (props)=>{
 
     const onClick = (e)=>{
         actions.setInputFilename({ PolygonFileName: null });
+        setPolygonData(null)
+        setPolygonDic(null)
         //actions.setMovesBase([]);
         e.target.value = '';
     };
