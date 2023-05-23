@@ -436,8 +436,10 @@ const App = (props)=>{
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPolygon,
         getFillColor: x => x.polyColor,
+        getLineWidth: 0.5,
         pickable: true,
-        stroked: false,
+        stroked: (viewState.zoom>9),
+        lineWidthUnits: 'pixels',
         opacity: 1,
         onHover,
         onClick
@@ -466,8 +468,10 @@ const App = (props)=>{
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPolygon,
         getFillColor: x => x.polyColor,
+        getLineWidth: 0.5,
         pickable: true,
-        stroked: false,
+        stroked: (viewState.zoom>9),
+        lineWidthUnits: 'pixels',
         opacity: 1,
         onHover,
         onClick
