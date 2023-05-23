@@ -151,7 +151,7 @@ const App = (props)=>{
           setclusterList.push(+data.cluster)
         }
         if(polygonDic[others.AreaID]){
-          const {Polygon,Color:polyColor,text:polytext="",...polyOthers} = polygonDic[others.AreaID][0]
+          const {Polygon,Color:polyColor,text:polytext="", cluster:polycluster, ...polyOthers} = polygonDic[others.AreaID][0]
           if(Array.isArray(xyz) && Array.isArray(xyz[0]) && xyz[0].length === 3){
             if(xyz.length > 1){
               const operation = xyz.map((elxyz,idx)=>{
@@ -163,13 +163,13 @@ const App = (props)=>{
               })
               const lastIdx = xyz.length-1
               operation.push({polygon:Polygon, polyColor, position:xyz[lastIdx], color:Color[lastIdx], elapsedtime:(time[lastIdx]+1)})
-              return {...polyOthers, ...others, operation}
+              return {...polyOthers, polycluster, ...others, operation}
             }else{
               minElapsedtime = Math.min(minElapsedtime,time[0]);
               maxElapsedtime = Math.max(maxElapsedtime,time[0]+1);
               let settext = ""
               if(text && text[0]){settext = text[0]}
-              return {...polyOthers, ...others, operation:[
+              return {...polyOthers, polycluster, ...others, operation:[
                 {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0], text:settext, polytext},
                 {polygon:Polygon, polyColor, position:xyz[0], color:Color[0], elapsedtime:time[0]+1, text:settext}
               ]}
@@ -178,12 +178,12 @@ const App = (props)=>{
           if(Array.isArray(xyz) && xyz.length === 3){
             minElapsedtime = Math.min(minElapsedtime,time);
             maxElapsedtime = Math.max(maxElapsedtime,time+1);
-            return {...polyOthers, ...others, operation:[
+            return {...polyOthers, polycluster, ...others, operation:[
               {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time, text:(text || ""), polytext},
               {polygon:Polygon, polyColor, position:xyz, color:Color, elapsedtime:time+1, text:(text || "")}
             ]}
           }else{
-            return {...polyOthers, ...others, operation:[{elapsedtime:time}]}
+            return {...polyOthers, polycluster, ...others, operation:[{elapsedtime:time}]}
           }
         }else{
           if(Array.isArray(time)){
@@ -369,6 +369,30 @@ const App = (props)=>{
     return [1000,1000,1000]
   }
 
+  const getPolygon = (x)=>{
+    if(x.polycluster === undefined){
+      return x.polygon
+    }else{
+      const result = clusterList.find((el)=>el.cluster === x.polycluster)
+      if(result && result.check){
+        return x.polygon
+      }
+    }
+    return [[1000,1000,1000]]
+  }
+
+  const getPosition2 = (x)=>{
+    if(x.polycluster === undefined){
+      return x.polygon[0]
+    }else{
+      const result = clusterList.find((el)=>el.cluster === x.polycluster)
+      if(result && result.check){
+        return x.polygon[0]
+      }
+    }
+    return [1000,1000,1000]
+  }
+
   const getPointCloudLayer = (text3dData)=>{
     const opacity = polypoiMove / 200
     return new PointCloudLayer({
@@ -410,6 +434,7 @@ const App = (props)=>{
         id: 'PolygonLayer',
         data: polyData,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon,
         getFillColor: x => x.polyColor,
         pickable: true,
         stroked: false,
@@ -422,7 +447,7 @@ const App = (props)=>{
         data: polyData,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         characterSet: 'auto',
-        getPosition: x => x.polygon[0],
+        getPosition: getPosition2,
         getText: x => ` ${x.polytext}`,
         getColor: x => x.polyColor,
         getSize: x => textSiza,
@@ -433,11 +458,13 @@ const App = (props)=>{
   }
 
   const getPolyPoiMoveLayer = ()=>{
+    if(polypoiMove === 0){return null}
     if(polypoiData.length > 0){
       return new PolygonLayer({
         id: 'PolyPoiMoveLayer',
         data: polypoiData,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon,
         getFillColor: x => x.polyColor,
         pickable: true,
         stroked: false,
