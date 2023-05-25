@@ -1,8 +1,7 @@
 import React from 'react';
 
 export const PolygonDataInput = (props)=>{
-    const { actions, id,
-        polygonData, setPolygonData, polygonDic, setPolygonDic } = props;
+    const { actions, id, setPolygonData, setPolygonDic } = props;
 
     const onSelect = (e)=>{
         const reader = new FileReader();
@@ -11,7 +10,6 @@ export const PolygonDataInput = (props)=>{
             return;
         }
         actions.setLoading(true);
-        //actions.setMovesBase([]);
         setPolygonData(null)
         setPolygonDic(null)
         actions.setInputFilename({ PolygonFileName: null });
@@ -52,7 +50,6 @@ export const PolygonDataInput = (props)=>{
         actions.setInputFilename({ PolygonFileName: null });
         setPolygonData(null)
         setPolygonDic(null)
-        //actions.setMovesBase([]);
         e.target.value = '';
     };
 

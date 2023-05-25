@@ -4,9 +4,6 @@ import { PlayButton, PauseButton, ForwardButton, ReverseButton,
 import { PointDataInput } from './PointDataInput';
 import { PolygonDataInput } from './PolygonDataInput';
 
-const Checkbox = React.memo(({key,id,onChange,title,className='harmovis_input_checkbox',defaultChecked=false})=>
-  <input type="checkbox" key={key} id={id} onChange={onChange} className={className} defaultChecked={defaultChecked} />)
-
 export default class Controller extends React.Component {
   onClick(buttonType){
     const { viewState, updateViewState } = this.props;
@@ -30,11 +27,6 @@ export default class Controller extends React.Component {
         break
       }
     }
-  }
-
-  setClusterNum(e){
-    const { setClusterNum } = this.props;
-    setClusterNum(+e.target.value)
   }
 
   setTextSiza(e){
@@ -89,8 +81,8 @@ export default class Controller extends React.Component {
   render() {
 
     const { actions, inputFileName, animatePause, animateReverse, leading,
-      settime, timeBegin, timeLength, clusterNum, textSiza, pointSiza, clusterList,
-      pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic, polypoiMove } = this.props;
+      settime, timeBegin, timeLength, textSiza, pointSiza, clusterList,
+      pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic } = this.props;
     const { PointFileName, PolygonFileName } = inputFileName;
 
     return (
@@ -118,11 +110,6 @@ export default class Controller extends React.Component {
                 <div>{PolygonFileName}</div>
                 </div>
             </li>
-            {/* <li className="flex_row">
-            <label htmlFor="setPolypoiMove">{`Animation :`}</label>
-              <input type="range" value={polypoiMove} min={0} max={200} step={1} onChange={this.setPolypoiMove.bind(this)}
-                className='harmovis_input_range' id='setPolypoiMove' title={polypoiMove}/>
-            </li> */}
             <li className="flex_row">
               {animatePause ?
                 <PlayButton actions={actions} />:<PauseButton actions={actions} />

@@ -4,7 +4,6 @@ import { PointCloudLayer, LineLayer, COORDINATE_SYSTEM, TextLayer, OrbitView, Po
 import {
   Container, connectToHarmowareVis, LoadingIcon, FpsDisplay
 } from 'harmoware-vis';
-import Clustering from 'density-clustering';
 import Controller from '../components';
 
 const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN; //Acquire Mapbox accesstoken
@@ -15,29 +14,12 @@ const INITIAL_VIEW_STATE = {
   rotationOrbit: -5,
   zoom: 8.5
 };
-const kmeans = new Clustering.KMEANS()
-const clusterColors = [
-  [0x1f,0x77,0xb4],
-  [0xff,0x7f,0x0e],
-  [0x2c,0xa0,0x2c],
-  [0xd6,0x27,0x28],
-  [0x94,0x67,0xbd],
-  [0x8c,0x56,0x4b],
-  [0xe3,0x77,0xc2],
-  [0x7f,0x7f,0x7f],
-  [0xbc,0xbd,0x22],
-  [0x17,0xbe,0xcf],
-]
 
 const App = (props)=>{
   const [state,setState] = useState({ popup: [0, 0, ''] })
   const [viewState, updateViewState] = useState(INITIAL_VIEW_STATE);
-  const [saveDataset, setDataset] = useState([[]])
-  const [clusterNum, setClusterNum] = useState(10);
   const [textSiza, setTextSiza] = useState(10);
   const [pointSiza, setPointSiza] = useState(1);
-  const [clusterColor, setClusterColor] = useState(undefined);
-  const [shikibetuTbl, setShikibetuTbl] = useState([]);
   const [selectPointId, setSelectPointId] = useState([]);
   const [pointData, setPointData] = useState(null);
   const [polygonData, setPolygonData] = useState(null);
@@ -45,10 +27,9 @@ const App = (props)=>{
   const [polypoiMove, setPolypoiMove] = useState(0);
   const [polypoiData, setPolypoiData] = useState([]);
   const [clusterList, setClusterList] = useState([]);
-  const { actions, viewport, movesbase, movedData, loading, loopEndPause, timeBegin } = props;
+  const { actions, viewport, movedData, loading, loopEndPause, timeBegin } = props;
 
-  const text3dData = movedData.filter(x=>x.position)
-  const dataset = text3dData.map((x)=>x.position).sort((a,b)=>{a[0]-b[0]})
+  const positionData = movedData.filter(x=>x.position && x.polygon)
 
   const autoRotation = async (argRotationOrbit,direction)=>{
     const rotationOrbit = argRotationOrbit+direction
@@ -92,19 +73,10 @@ const App = (props)=>{
       if(keyName === "9"){
         autoRotation(viewState.rotationOrbit,1)
       }
-      if(keyName === "5"){
-        //actions.setAnimateReverse(!props.animateReverse)
-        /*if(App.autoPolypoiMoveId){
-          clearTimeout(App.autoPolypoiMoveId);
-          App.autoPolypoiMoveId = null
-        }*/
-      }
       if(keyName === "4"){
-        //actions.addMinutes(-5)
         autoPolypoiMove(polypoiMove,-20)
       }
       if(keyName === "6"){
-        //actions.addMinutes(5)
         autoPolypoiMove(polypoiMove,20)
       }
       if(keyName === "/"){
@@ -134,6 +106,12 @@ const App = (props)=>{
   }
 
   React.useEffect(()=>{
+    actions.setNoLoop(true)
+    actions.setInitialViewChange(false);
+    actions.setSecPerHour(3600);
+    actions.setLeading(0);
+    actions.setTrailing(0);
+    actions.setAnimatePause(true);
     setTimeout(()=>{document.getElementById('deckgl-wrapper').focus()},1000)
     setTimeout(()=>{InitialFileRead1({...props,setPointData,setPolygonData,setPolygonDic})},200)
   },[])
@@ -215,12 +193,11 @@ const App = (props)=>{
   },[pointData,polygonDic])
 
   React.useEffect(()=>{
-    const polyData = text3dData.filter(x=>x.polygon)
     if(polypoiMove <= 0 && polypoiMove > 200){
-      setPolypoiData(polyData)
+      setPolypoiData(positionData)
     }else{
       if(pointData !== null && polygonDic !== null){
-        const transData = polyData.map((data)=>{
+        const transData = positionData.map((data)=>{
           const {polygon, position} = data
           const rate = polypoiMove/200
           const transCorner = polygon.map((corner)=>{
@@ -241,79 +218,6 @@ const App = (props)=>{
       }
     }
   },[polypoiMove])
-
-  React.useEffect(()=>{
-    if(movesbase.length === 0){
-      setClusterColor(undefined)
-      setShikibetuTbl([])
-    }
-  },[movesbase])
-
-  let flg = false
-  if(dataset.length !== saveDataset.length){
-    flg = true
-    setDataset(dataset)
-  }else{
-    for(let i=0; i > dataset.length; i=i+1){
-      if(dataset[i].length !== saveDataset[i].length){
-        flg = true
-        setDataset(dataset)
-        break
-      }else{
-        for(let j=0; j > dataset.length; j=j+1){
-          if(dataset[i][j] !== saveDataset[i][j]){
-            flg = true
-            setDataset(dataset)
-            break
-          }
-        }
-      }
-    }
-  }
-  if(flg){
-    if(clusterColor === undefined && dataset.length>0){
-      const clusters = kmeans.run(dataset, clusterNum)
-      clusters.sort((a, b) => (a[0] - b[0]))
-      const wkClusterColor = text3dData.reduce((prev,current,idx)=>{
-        for(let i=0; i<clusters.length; i=i+1){
-          if(clusters[i].includes(idx)){
-            prev[current.shikibetu] = clusterColors[i]
-            return prev
-          }
-        }
-        prev[current.shikibetu] = [255,255,255,255]
-        return prev
-      },{})
-      setClusterColor(wkClusterColor)
-    }
-  }
-
-  React.useEffect(()=>{
-    if(dataset.length>0){
-      const clusters = kmeans.run(dataset, clusterNum)
-      clusters.sort((a, b) => (a.length - b.length))
-      const wkClusterColor = text3dData.reduce((prev,current,idx)=>{
-        for(let i=0; i<clusters.length; i=i+1){
-          if(clusters[i].includes(idx)){
-            prev[current.shikibetu] = clusterColors[i]
-            return prev
-          }
-        }
-        prev[current.shikibetu] = [255,255,255,255]
-        return prev
-      },{})
-      setClusterColor(wkClusterColor)
-    }
-  },[clusterNum])
-
-  React.useEffect(()=>{
-    actions.setNoLoop(true)
-    actions.setInitialViewChange(false);
-    actions.setSecPerHour(3600);
-    actions.setLeading(0);
-    actions.setTrailing(0);
-    actions.setAnimatePause(true);
-  },[])
 
   React.useEffect(()=>{
     if(!loopEndPause){
@@ -350,91 +254,106 @@ const App = (props)=>{
     }
   }
 
-  const getTextSize = (x)=>{
-    if(shikibetuTbl.length === 0 || shikibetuTbl.includes(x.shikibetu)){
-      return textSiza
-    }
-    return 0
-  }
-
-  const getPosition = (x)=>{
-    if(x.cluster === undefined){
-      return x.position
-    }else{
-      const result = clusterList.find((el)=>el.cluster === x.cluster)
-      if(result && result.check){
-        return x.position
-      }
-    }
-    return [1000,1000,1000]
-  }
-
-  const getPolygon = (x)=>{
-    if(x.polycluster === undefined){
-      return x.polygon
-    }else{
-      const result = clusterList.find((el)=>el.cluster === x.polycluster)
-      if(result && result.check){
-        return x.polygon
-      }
-    }
-    return [[1000,1000,1000]]
-  }
-
-  const getPosition2 = (x)=>{
-    if(x.polycluster === undefined){
-      return x.polygon[0]
-    }else{
-      const result = clusterList.find((el)=>el.cluster === x.polycluster)
-      if(result && result.check){
-        return x.polygon[0]
-      }
-    }
-    return [1000,1000,1000]
-  }
-
-  const getPointCloudLayer = (text3dData)=>{
+  const getPointCloudLayer = ()=>{
+    if(polypoiMove === 0){return null}
     const opacity = polypoiMove / 200
-    return new PointCloudLayer({
-      id: 'PointCloudLayer',
-      data: App.autoPolypoiMoveId ? polypoiData : text3dData,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPosition,
-      getColor: x => x.color,
-      pointSize: pointSiza,
-      pickable: true,
-      opacity: opacity,
-      onHover,
-      onClick
-    });
+    const currentData = App.autoPolypoiMoveId ? polypoiData : positionData
+    const clusterdata = currentData.filter((x)=>{
+      if(x.cluster === undefined){
+        return true
+      }else{
+        const result = clusterList.find((el)=>el.cluster === x.cluster)
+        if(result && result.check){
+          return true
+        }
+      }
+      return false
+    })
+    const selectdata = clusterdata.filter((x)=>selectPointId.includes(x.AreaID))
+    return [
+      new PointCloudLayer({
+        id: 'PointCloudLayer',
+        data: clusterdata,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getColor: x => x.color,
+        pointSize: pointSiza,
+        pickable: true,
+        opacity: opacity,
+        onHover,
+        onClick
+      }),
+      new PointCloudLayer({
+        id: 'SelPointCloudLayer',
+        data: selectdata,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getColor: x => x.color,
+        pointSize: pointSiza+2,
+        pickable: true,
+        opacity: opacity,
+        onHover,
+        onClick
+      }),
+      new TextLayer({
+        id: 'TextLayer',
+        data: clusterdata,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        characterSet: 'auto',
+        getText: x => x.text,
+        getColor: x => x.color,
+        getSize: x => textSiza * opacity,
+        getTextAnchor: 'start',
+        opacity: opacity,
+      })
+    ];
   }
 
-  const getSelPointCloudLayer = (text3dData)=>{
-    const opacity = polypoiMove / 200
-    const dspdata = (App.autoPolypoiMoveId ? polypoiData : text3dData).filter((x)=>selectPointId.includes(x.AreaID))
-    return new PointCloudLayer({
-      id: 'SelPointCloudLayer',
-      data: dspdata,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPosition,
-      getColor: x => x.color,
-      pointSize: pointSiza+2,
-      pickable: true,
-      opacity: opacity,
-      onHover,
-      onClick
-    });
-  }
-
-  const getPolygonLayer = (text3dData)=>{
-    if(polypoiMove > 0){return null}
-    const polyData = text3dData.filter(x=>x.polygon)
+  const getPolygonLayer = ()=>{
+    if(polypoiMove > 0){
+      const clusterdata = polypoiData.filter((x)=>{
+        if(x.cluster === undefined){
+          return true
+        }else{
+          const result = clusterList.find((el)=>el.cluster === x.polycluster)
+          if(result && result.check){
+            return true
+          }
+        }
+        return false
+      })
+      if(clusterdata.length > 0){
+        return new PolygonLayer({
+          id: 'PolyPoiMoveLayer',
+          data: clusterdata,
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getFillColor: x => x.polyColor,
+          getLineWidth: 0.5,
+          pickable: true,
+          stroked: (viewState.zoom>9),
+          lineWidthUnits: 'pixels',
+          opacity: 1,
+          onHover,
+          onClick
+        });
+      }else{
+        return null
+      }
+    }
+    const clusterdata = positionData.filter((x)=>{
+      if(x.cluster === undefined){
+        return true
+      }else{
+        const result = clusterList.find((el)=>el.cluster === x.polycluster)
+        if(result && result.check){
+          return true
+        }
+      }
+      return false
+    })
     return [
       new PolygonLayer({
         id: 'PolygonLayer',
-        data: polyData,
+        data: clusterdata,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon,
         getFillColor: x => x.polyColor,
         getLineWidth: 0.5,
         pickable: true,
@@ -446,61 +365,22 @@ const App = (props)=>{
       }),
       new TextLayer({
         id: 'PolygonTextLayer',
-        data: polyData,
+        data: clusterdata,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         characterSet: 'auto',
-        getPosition: getPosition2,
+        getPosition: x=>x.polygon[0],
         getText: x => ` ${x.polytext}`,
         getColor: x => x.polyColor,
         getSize: x => textSiza,
         getTextAnchor: 'start',
         opacity: 1,
-      })
+      }),
     ];
-  }
-
-  const getPolyPoiMoveLayer = ()=>{
-    if(polypoiMove === 0){return null}
-    if(polypoiData.length > 0){
-      return new PolygonLayer({
-        id: 'PolyPoiMoveLayer',
-        data: polypoiData,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon,
-        getFillColor: x => x.polyColor,
-        getLineWidth: 0.5,
-        pickable: true,
-        stroked: (viewState.zoom>9),
-        lineWidthUnits: 'pixels',
-        opacity: 1,
-        onHover,
-        onClick
-      });
-    }else{
-      return null
-    }
-  }
-
-  const getTextLayer = (text3dData)=>{
-    const opacity = polypoiMove / 200
-    return new TextLayer({
-      id: 'TextLayer',
-      data: App.autoPolypoiMoveId ? polypoiData : text3dData,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      characterSet: 'auto',
-      getPosition,
-      getText: x => x.text,
-      getColor: x => x.color,
-      getSize: x => textSiza * opacity,
-      getTextAnchor: 'start',
-      opacity: opacity,
-    });
   }
 
   return (
     <Container {...props}>
       <Controller {...props} updateViewState={updateViewState} viewState={viewState}
-      clusterNum={clusterNum} setClusterNum={setClusterNum}
       textSiza={textSiza} setTextSiza={setTextSiza}
       pointSiza={pointSiza} setPointSiza={setPointSiza}
       pointData={pointData} setPointData={setPointData}
@@ -543,11 +423,8 @@ const App = (props)=>{
                 getTextAnchor: 'start',
                 opacity: 1,
               }),
-              text3dData.length > 0 ? getTextLayer(text3dData):null,
-              text3dData.length > 0 ? getPolygonLayer(text3dData):null,
-              getPolyPoiMoveLayer(),
-              text3dData.length > 0 ? getSelPointCloudLayer(text3dData):null,
-              text3dData.length > 0 ? getPointCloudLayer(text3dData):null,
+              positionData.length > 0 ? getPolygonLayer():null,
+              positionData.length > 0 ? getPointCloudLayer():null,
           ]}
         />
       </div>
@@ -585,7 +462,6 @@ const InitialFileRead1 = (props)=>{
   request.responseType = 'text';
   request.send();
   actions.setLoading(true);
-  //actions.setMovesBase([]);
   request.onload = function() {
     try {
       try {

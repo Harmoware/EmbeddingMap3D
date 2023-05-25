@@ -1,8 +1,7 @@
 import React from 'react';
 
 export const PointDataInput = (props)=>{
-    const { actions, id,
-    pointData, setPointData, polygonDic, setPolygonDic } = props;
+    const { actions, id, setPointData } = props;
 
     const onSelect = (e)=>{
         const reader = new FileReader();
@@ -11,7 +10,6 @@ export const PointDataInput = (props)=>{
             return;
         }
         actions.setLoading(true);
-        //actions.setMovesBase([]);
         setPointData(null)
         actions.setInputFilename({ PointFileName: null });
         reader.readAsText(file);
@@ -41,7 +39,6 @@ export const PointDataInput = (props)=>{
     const onClick = (e)=>{
         actions.setInputFilename({ PointFileName: null });
         setPointData(null)
-        //actions.setMovesBase([]);
         e.target.value = '';
     };
 
