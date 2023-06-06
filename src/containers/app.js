@@ -61,7 +61,6 @@ const App = (props)=>{
       const keyName = event.key
       console.log(`keypress:${keyName}`)
       if(keyName === "8"){
-        document.getElementById('deckgl-wrapper').focus()
         if(App.autoRotationId){
           clearTimeout(App.autoRotationId);
           App.autoRotationId = null
@@ -102,6 +101,9 @@ const App = (props)=>{
       if(keyName === "*"){
         updateViewState(INITIAL_VIEW_STATE)
       }
+    }
+    if(event.key === "Home"){
+      document.getElementById('deckgl-wrapper').focus()
     }
   }
 
