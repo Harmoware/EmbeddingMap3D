@@ -144,7 +144,7 @@ export default class Controller extends React.Component {
             {clusterList.map((el,idx)=>{
               return (
                 <li className="flex_row" key={idx}>
-                  <input type="checkbox" id={`ClusterID:${el.cluster}`} onChange={this.setClusterList.bind(this,{idx:idx})} className="harmovis_input_checkbox" defaultChecked={true} />
+                  <input type="checkbox" id={`ClusterID:${el.cluster}`} onChange={this.setClusterList.bind(this,{idx:idx})} className="harmovis_input_checkbox" checked={clusterList[idx].check} />
                   <label htmlFor={`ClusterID:${el.cluster}`}>{`ClusterID : ${el.cluster}`}</label>
                 </li>
               )
