@@ -31,7 +31,7 @@ const App = (props)=>{
 
   const positionData = movedData.filter(x=>x.position && x.polygon)
 
-  const autoRotation = async (argRotationOrbit,direction)=>{
+  const autoRotation = (argRotationOrbit,direction)=>{
     const rotationOrbit = argRotationOrbit+direction
     const transitionDuration = ((55*1000)/360)*Math.abs(direction)
     updateViewState({...viewState, rotationOrbit, transitionDuration})
@@ -39,7 +39,7 @@ const App = (props)=>{
     App.autoRotationId = setTimeout(autoRotation,transitionDuration,rotationOrbit,direction)
   }
 
-  const autoPolypoiMove = async (argPolypoiMove,direction)=>{
+  const autoPolypoiMove = (argPolypoiMove,direction)=>{
     const polypoiMove = argPolypoiMove + direction
     if(polypoiMove < 0 || polypoiMove > 200){
       if(App.autoPolypoiMoveId){
