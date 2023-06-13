@@ -131,13 +131,13 @@ export default class Controller extends React.Component {
               <ElapsedTimeRange settime={settime} timeLength={timeLength} timeBegin={timeBegin} actions={actions}
               min={leading*-1} style={{'width':'100%'}} />
             </li>
-            <li className="flex_row">
-            <label htmlFor="setPointSiza">{`Point Size : `}</label>
+            <li className="flex_column">
+            <label htmlFor="setPointSiza" className="range">{`Point Size`}</label>
               <input type="range" value={pointSiza} min={0} max={8} step={0.1} onChange={this.setPointSiza.bind(this)}
                 className='harmovis_input_range' id='setPointSiza' title={pointSiza}/>
             </li>
-            <li className="flex_row">
-            <label htmlFor="setTextSiza">{`Text Size : `}</label>
+            <li className="flex_column">
+            <label htmlFor="setTextSiza" className="range">{`Text Size`}</label>
               <input type="range" value={textSiza} min={0} max={20} step={0.2} onChange={this.setTextSiza.bind(this)}
                 className='harmovis_input_range' id='setTextSiza' title={textSiza}/>
             </li>

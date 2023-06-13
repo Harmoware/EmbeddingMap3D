@@ -9,11 +9,12 @@ div.harmovis_controller {
     margin: 0px; 
     li.flex_row {
       padding: 5px 0px; 
-      display: flex;
+      display: block;
       flex-direction: row;
     }
     li.flex_column {
       @extend .flex_row;
+      display: inline;
       flex-direction: column;
     }
   }
@@ -43,6 +44,18 @@ input.harmovis_input_number[type="number"]{
   @extend .harmovis_input_number;
   text-align: right;
   width: 100%;
+}
+input.harmovis_input_range[type="range"]{
+  background: rgba(255, 255, 255, 0.5);
+  height: 2px;
+  margin: 8px 0px;
+  border-radius: 2px;
+  width: 100%; 
+  display:block;
+}
+label.range{
+  display:block;
+  width: 100%;      
 }
 div.imagecanvas {
   width: 100%; 
