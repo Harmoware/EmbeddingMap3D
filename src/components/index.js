@@ -4,6 +4,8 @@ import { PlayButton, PauseButton, ForwardButton, ReverseButton,
 import { PointDataInput } from './PointDataInput';
 import { PolygonDataInput } from './PolygonDataInput';
 
+const arrStrConv = (value)=>Array.isArray(value)?`[${value.map(el=>arrStrConv(el))}]`:value.toString()
+
 export default class Controller extends React.Component {
   onClick(buttonType){
     const { viewState, updateViewState } = this.props;
@@ -44,6 +46,11 @@ export default class Controller extends React.Component {
     setPolypoiMove(+e.target.value)
   }
 
+  setDimensionIdx(e){
+    const { setDimensionIdx } = this.props;
+    setDimensionIdx(+e.target.value)
+  }
+
   setClusterList(arg){
     console.log({arg})
     const { idx } = arg;
@@ -80,8 +87,8 @@ export default class Controller extends React.Component {
 
   render() {
 
-    const { actions, inputFileName, animatePause, animateReverse, leading,
-      settime, timeBegin, timeLength, textSiza, pointSiza, clusterList,
+    const { actions, inputFileName, animatePause, animateReverse, leading, dimensionIdx,
+      settime, timeBegin, timeLength, textSiza, pointSiza, clusterList, dimensionList,
       pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic } = this.props;
     const { PointFileName, PolygonFileName } = inputFileName;
 
@@ -141,6 +148,15 @@ export default class Controller extends React.Component {
               <input type="range" value={textSiza} min={0} max={20} step={0.2} onChange={this.setTextSiza.bind(this)}
                 className='harmovis_input_range' id='setTextSiza' title={textSiza}/>
             </li>
+            {dimensionList.length > 1 ?
+            <li className="flex_row">
+              <div className="container">
+                <label htmlFor="dimension_select">Dimension select</label>
+                <select id="dimension_select" value={dimensionIdx} onChange={this.setDimensionIdx.bind(this)}>
+                  {dimensionList.map((data,idx) => <option value={idx} key={idx}>{`[x,y,z] : ${arrStrConv(data)}`}</option>)}
+                </select>
+              </div>
+            </li> : null}
             {clusterList.map((el,idx)=>{
               return (
                 <li className="flex_row" key={idx}>
