@@ -486,50 +486,33 @@ export default connectToHarmowareVis(App);
 
 const InitialFileRead1 = (props)=>{
   const { actions } = props;
-  const request = new XMLHttpRequest();
+  actions.setLoading(true)
+  const fileName = 'PointDemoData.json'
   let pointData = null
-  request.open('GET', 'data/PointDemoData.json');
-  request.responseType = 'text';
-  request.send();
-  actions.setLoading(true);
-  request.onload = function() {
-    try {
-      try {
-        pointData = JSON.parse(request.response);
-      } catch (exception) {
-        actions.setLoading(false);
-        return;
-      }
+  loadJsonFile(`data/${fileName}`)
+    .then((result)=>{
+      pointData = result
       console.log({pointData})
-      actions.setInputFilename({ PointFileName: 'PointDemoData.json' });
+      actions.setInputFilename({ PointFileName: fileName })
       const argProps = {...props, pointData}
       setTimeout(()=>{InitialFileRead2(argProps)},200)
-    } catch (exception) {
-      actions.setInputFilename({ PointFileName: null });
-      actions.setInputFilename({ PolygonFileName: null });
-      actions.setLoading(false);
-      return;
-    }
-  }
+    })
+    .catch((error)=>{
+      console.log(error)
+      actions.setInputFilename({ PointFileName: null })
+      actions.setLoading(false)
+    })
 }
+
 const InitialFileRead2 = (props)=>{
-  const { actions, pointData, setPointData, setPolygonData, setPolygonDic } = props;
-  const request = new XMLHttpRequest();
+  const { actions, pointData, setPointData, setPolygonData, setPolygonDic } = props
+  const fileName = 'PolygonDemoData.json'
   let polygonData = null
-  request.open('GET', 'data/PolygonDemoData.json');
-  request.responseType = 'text';
-  request.send();
-  request.onload = function() {
-    try {
-      try {
-        polygonData = JSON.parse(request.response);
-      } catch (exception) {
-        actions.setInputFilename({ PointFileName: null });
-        actions.setLoading(false);
-        return;
-      }
+  loadJsonFile(`data/${fileName}`)
+    .then((result)=>{
+      polygonData = result
       console.log({polygonData})
-      actions.setInputFilename({ PolygonFileName: 'PolygonDemoData.json' });
+      actions.setInputFilename({ PolygonFileName: fileName })
       const polygonDic = polygonData.reduce((prev,current)=>{
         if(String(current.AreaID) in prev){
           prev[current.AreaID].push(current)
@@ -542,16 +525,43 @@ const InitialFileRead2 = (props)=>{
       setPointData(pointData)
       setPolygonData(polygonData)
       setPolygonDic(polygonDic)
-      actions.setRoutePaths([]);
-      actions.setClicked(null);
-      actions.setAnimatePause(true);
-      actions.setAnimateReverse(false);
-      actions.setLoading(false);
-    } catch (exception) {
-      actions.setInputFilename({ PointFileName: null });
-      actions.setInputFilename({ PolygonFileName: null });
-      actions.setLoading(false);
-      return;
+      actions.setRoutePaths([])
+      actions.setClicked(null)
+      actions.setAnimatePause(true)
+      actions.setAnimateReverse(false)
+    })
+    .catch((error)=>{
+      console.log(error)
+      actions.setInputFilename({ PolygonFileName: null })
+      actions.setInputFilename({ PointFileName: null })
+    })
+    .finally(()=>{
+      actions.setLoading(false)
+    })
+}
+
+const loadJsonFile = (path)=>{
+  return new Promise((resolve,reject)=>{
+    const request = new XMLHttpRequest()
+    request.open('GET', path)
+    request.responseType = 'text'
+    request.send()
+    request.onload = ()=>{
+      try {
+        resolve(JSON.parse(request.response))
+      } catch (exception) {
+        console.log({exception})
+        reject('JSON.parse fail!')
+      }
     }
-  }
+    request.onerror = ()=>{
+        reject('onerror!')
+    }
+    request.onabort = ()=>{
+      reject('onabort!')
+    }
+    request.ontimeout = ()=>{
+      reject('ontimeout!')
+    }
+  })
 }
