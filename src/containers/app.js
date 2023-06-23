@@ -15,25 +15,6 @@ const INITIAL_VIEW_STATE = {
   zoom: 8.5
 };
 
-const permutation = (arr, number) => {
-  let ans = []
-  if (number === 1) {
-      for (let i = 0; i < arr.length; i++) {
-          ans[i] = [arr[i]]
-      }
-  } else {
-      for (let i = 0; i < arr.length; i++) {
-          let parts = arr.slice(0)
-          parts.splice(i, 1)[0]
-          let row = permutation(parts, number - 1)
-          for (let j = 0; j < row.length; j++) {
-              ans.push([arr[i]].concat(row[j]))
-          }
-      }
-  }
-  return ans;
-}
-
 const App = (props)=>{
   const [state,setState] = useState({ popup: [0, 0, ''] })
   const [viewState, updateViewState] = useState(INITIAL_VIEW_STATE);
@@ -46,9 +27,10 @@ const App = (props)=>{
   const [polypoiMove, setPolypoiMove] = useState(0);
   const [polypoiData, setPolypoiData] = useState([]);
   const [clusterList, setClusterList] = useState([]);
-  const [dimensionIdx, setDimensionIdx] = useState(0);
-  const [dimensionList, setDimensionList] = useState([[0,1,2]]);
   const [dimensionNo, setDimensionNo] = useState(3);
+  const [dimensionX, setDimensionX] = useState(0);
+  const [dimensionY, setDimensionY] = useState(1);
+  const [dimensionZ, setDimensionZ] = useState(2);
   const { actions, viewport, movedData, loading, loopEndPause, timeBegin } = props;
 
   const positionData = movedData.filter(x=>x.position && x.polygon)
@@ -57,9 +39,9 @@ const App = (props)=>{
   }
 
   React.useEffect(()=>{
-    const dimensionList = permutation([...Array(dimensionNo)].map((_, i) => i),3)
-    setDimensionList(dimensionList)
-    setDimensionIdx(0)
+    setDimensionX(0)
+    setDimensionY(1)
+    setDimensionZ(2)
   },[dimensionNo])
 
   const autoRotation = (argRotationOrbit,direction)=>{
@@ -235,15 +217,15 @@ const App = (props)=>{
           const rate = polypoiMove/200
           const transCorner = polygon.map((corner)=>{
             return [
-              corner[0] - (corner[0] - position[dimensionList[dimensionIdx][0]]) * rate,
-              corner[1] - (corner[1] - position[dimensionList[dimensionIdx][1]]) * rate,
-              corner[2] - (corner[2] - position[dimensionList[dimensionIdx][2]]) * rate,
+              corner[0] - (corner[0] - position[dimensionX]) * rate,
+              corner[1] - (corner[1] - position[dimensionY]) * rate,
+              corner[2] - (corner[2] - position[dimensionZ]) * rate,
             ]
           })
           const transPosition = [...position]
-          transPosition[dimensionList[dimensionIdx][0]] = polygon[0][0] - (polygon[0][0] - position[dimensionList[dimensionIdx][0]]) * rate
-          transPosition[dimensionList[dimensionIdx][1]] = polygon[0][1] - (polygon[0][1] - position[dimensionList[dimensionIdx][1]]) * rate
-          transPosition[dimensionList[dimensionIdx][2]] = polygon[0][2] - (polygon[0][2] - position[dimensionList[dimensionIdx][2]]) * rate
+          transPosition[dimensionX] = polygon[0][0] - (polygon[0][0] - position[dimensionX]) * rate
+          transPosition[dimensionY] = polygon[0][1] - (polygon[0][1] - position[dimensionY]) * rate
+          transPosition[dimensionZ] = polygon[0][2] - (polygon[0][2] - position[dimensionZ]) * rate
           return {...data, polygon:transCorner, position:transPosition}
         })
         setPolypoiData(transData)
@@ -264,9 +246,9 @@ const App = (props)=>{
   const onHover = (el)=>{
     if (el && el.object) {
       const disptext = `AreaID:${el.object.AreaID}\n` +
-      `X:${el.object.position[dimensionList[dimensionIdx][0]]}\n`+
-      `Y:${el.object.position[dimensionList[dimensionIdx][1]]}\n`+
-      `Z:${el.object.position[dimensionList[dimensionIdx][2]]}`
+      `X:${el.object.position[dimensionX]}\n`+
+      `Y:${el.object.position[dimensionY]}\n`+
+      `Z:${el.object.position[dimensionZ]}`
       updateState({ popup: [el.x, el.y, disptext] });
     } else {
       updateState({ popup: [0, 0, ''] });
@@ -289,9 +271,9 @@ const App = (props)=>{
   }
 
   const getPosition = x => [
-    x.position[dimensionList[dimensionIdx][0]],
-    x.position[dimensionList[dimensionIdx][1]],
-    x.position[dimensionList[dimensionIdx][2]]
+    x.position[dimensionX],
+    x.position[dimensionY],
+    x.position[dimensionZ]
   ]
   const getPointCloudLayer = ()=>{
     if(polypoiMove === 0){return null}
@@ -350,6 +332,7 @@ const App = (props)=>{
   }
 
   const getPolygonLayer = ()=>{
+    if(polypoiMove >= 200){return null}
     if(polypoiMove > 0){
       const clusterdata = polypoiData.filter((x)=>{
         if(x.cluster === undefined){
@@ -430,7 +413,10 @@ const App = (props)=>{
       polygonDic={polygonDic} setPolygonDic={setPolygonDic}
       polypoiMove={polypoiMove} setPolypoiMove={setPolypoiMove}
       clusterList={clusterList} setClusterList={setClusterList}
-      dimensionIdx={dimensionIdx} setDimensionIdx={setDimensionIdx} dimensionList={dimensionList}
+      dimensionX={dimensionX} setDimensionX={setDimensionX}
+      dimensionY={dimensionY} setDimensionY={setDimensionY}
+      dimensionZ={dimensionZ} setDimensionZ={setDimensionZ}
+      dimensionNo={dimensionNo}
       />
       <div className="harmovis_area">
         <DeckGL

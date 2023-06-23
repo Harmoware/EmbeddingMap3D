@@ -17,6 +17,9 @@ div.harmovis_controller {
       display: inline;
       flex-direction: column;
     }
+    li.flex_row select{
+      margin: 0px 5px; 
+    }
   }
   ol {
     padding-inline-start: 0px;
@@ -43,7 +46,7 @@ div.harmovis_controller {
     font-size: 12px;
     letter-spacing: .026em;
     line-height: 14px;
-    padding: 3px 12px;
+    padding: 3px 6px;
     text-align: center;
     vertical-align: middle;
     width: 100%;

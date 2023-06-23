@@ -7,6 +7,17 @@ import { PolygonDataInput } from './PolygonDataInput';
 const arrStrConv = (value)=>Array.isArray(value)?`[${value.map(el=>arrStrConv(el))}]`:value.toString()
 
 export default class Controller extends React.Component {
+  constructor(props){
+    super(props)
+    this.dimensionList = [...Array(this.props.dimensionNo)].map((_, i) => i)
+  }
+
+  componentDidUpdate(prevProps) {
+    if(prevProps.dimensionNo !== this.props.dimensionNo){
+      this.dimensionList = [...Array(this.props.dimensionNo)].map((_, i) => i)
+    }
+  }
+
   onClick(buttonType){
     const { viewState, updateViewState } = this.props;
     switch (buttonType) {
@@ -41,14 +52,19 @@ export default class Controller extends React.Component {
     setPointSiza(+e.target.value)
   }
 
-  setPolypoiMove(e){
-    const { setPolypoiMove } = this.props;
-    setPolypoiMove(+e.target.value)
+  setDimensionX(e){
+    const { setDimensionX } = this.props;
+    setDimensionX(+e.target.value)
   }
 
-  setDimensionIdx(e){
-    const { setDimensionIdx } = this.props;
-    setDimensionIdx(+e.target.value)
+  setDimensionY(e){
+    const { setDimensionY } = this.props;
+    setDimensionY(+e.target.value)
+  }
+
+  setDimensionZ(e){
+    const { setDimensionZ } = this.props;
+    setDimensionZ(+e.target.value)
   }
 
   setClusterList(arg){
@@ -59,36 +75,10 @@ export default class Controller extends React.Component {
     setClusterList(clusterList)
   }
 
-  onClickAlign(){
-    const clickAndMove = document.getElementsByClassName('click-and-move')
-    let maxwidth = 0
-    let maxheight = 0
-    for(const elements of clickAndMove){
-      maxwidth = Math.max(elements.width,maxwidth)
-      maxheight = Math.max(elements.height,maxheight)
-    }
-    const count_x_max = ((window.innerWidth-240) / maxwidth)|0
-    const count_y_max = (window.innerHeight / maxheight)|0
-    let count_x = 0
-    let count_y = 0
-    for(let i=0; i<clickAndMove.length; i=i+1){
-      clickAndMove[i].style.top = `${count_y*maxheight}px`
-      clickAndMove[i].style.left = `${count_x*maxwidth}px`
-      count_x = count_x + 1
-      if(count_x >= count_x_max){
-        count_x = 0
-        count_y = count_y + 1
-        if(count_y >= count_y_max){
-          count_y = 0
-        }
-      }
-    }
-  }
-
   render() {
 
-    const { actions, inputFileName, animatePause, animateReverse, leading, dimensionIdx,
-      settime, timeBegin, timeLength, textSiza, pointSiza, clusterList, dimensionList,
+    const { actions, inputFileName, animatePause, animateReverse, leading,
+      settime, timeBegin, timeLength, textSiza, pointSiza, clusterList, dimensionX, dimensionY, dimensionZ,
       pointData, setPointData, polygonData, setPolygonData, polygonDic, setPolygonDic } = this.props;
     const { PointFileName, PolygonFileName } = inputFileName;
 
@@ -148,15 +138,20 @@ export default class Controller extends React.Component {
               <input type="range" value={textSiza} min={0} max={20} step={0.2} onChange={this.setTextSiza.bind(this)}
                 className='harmovis_input_range' id='setTextSiza' title={textSiza}/>
             </li>
-            {dimensionList.length > 1 ?
+            {this.dimensionList.length > 1 ? <>
+            <label>Dimension select</label>
             <li className="flex_row">
-              <div className="container">
-                <label htmlFor="dimension_select">Dimension select</label>
-                <select id="dimension_select" value={dimensionIdx} onChange={this.setDimensionIdx.bind(this)}>
-                  {dimensionList.map((data,idx) => <option value={idx} key={idx}>{`[x,y,z] : ${arrStrConv(data)}`}</option>)}
-                </select>
-              </div>
-            </li> : null}
+              X:<select id="dimension_select_x" value={dimensionX} onChange={this.setDimensionX.bind(this)}>
+                {this.dimensionList.map((data,idx) => <option value={idx} key={idx}>{data}</option>)}
+              </select>
+              Y:<select id="dimension_select_y" value={dimensionY} onChange={this.setDimensionY.bind(this)}>
+                {this.dimensionList.map((data,idx) => <option value={idx} key={idx}>{data}</option>)}
+              </select>
+              Z:<select id="dimension_select_z" value={dimensionZ} onChange={this.setDimensionZ.bind(this)}>
+                {this.dimensionList.map((data,idx) => <option value={idx} key={idx}>{data}</option>)}
+              </select>
+            </li>
+            </> : null}
             {clusterList.map((el,idx)=>{
               return (
                 <li className="flex_row" key={idx}>
